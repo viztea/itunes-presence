@@ -1,4 +1,4 @@
-# iTunes-Presence
+# iTunes Companion
 
 Discord Rich Presence for iTunes on Windows.
 
@@ -10,4 +10,4 @@ Discord Rich Presence for iTunes on Windows.
 ## TODO
 
 - [ ] possibly move to Deno so that binaries are easier to create.
-- [ ] add buttons to activity
+- [x] add buttons to activity

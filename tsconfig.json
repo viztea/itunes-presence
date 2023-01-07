@@ -9,9 +9,11 @@
         "target": "ES2022",
         "incremental": true,
         "allowJs": true,
+
         /* Modules */
         "moduleResolution": "node",
         "resolveJsonModule": true,
+
         /* Emit */
         "pretty": true,
         "rootDir": "./src",
@@ -21,6 +23,7 @@
         "removeComments": true,
         "inlineSourceMap": true,
         "useDefineForClassFields": true,
+        
         /* Strict Options */
         "strict": true,
         "skipLibCheck": true,
@@ -41,6 +44,7 @@
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true,
         "preserveConstEnums": true,
+        
         /* Types */
         "types": [
             "node"

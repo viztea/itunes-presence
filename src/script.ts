@@ -1,16 +1,24 @@
+import { spawn } from "node:child_process";
+import { Readable } from "node:stream";
+import { ReadableStream, TextDecoderStream } from "node:stream/web";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { JsonParseStream } from "./tools";
+import type { iTunes } from "./itunes";
 
-const SCRIPT_CONTENT = `
-var sQuery = "SELECT * FROM Win32_Process WHERE Name = 'iTunes.exe'";
-var stderr = WScript.CreateObject("Scripting.FileSystemObject").GetStandardStream(2);
+const SCRIPT_CONTENT = /* js */`
+var stderr = WScript
+        .CreateObject("Scripting.FileSystemObject")
+        .GetStandardStream(2), 
+    service = WScript
+        .CreateObject("WbemScripting.SWbemLocator")
+        .ConnectServer();
 
-var iTunesApp = null;
-var state = "";
+var iTunesApp = null, playing = false;
 
 function CreateJsonElement(element) {
-    if(typeof element == "string") {
-        return "\\"" + element + "\\"";
+    if (typeof element == "string") {
+        return '"' + element + '"';
     } else if (typeof element == "object") {
         return CreateJsonObject(element);
     } else {
@@ -18,115 +26,101 @@ function CreateJsonElement(element) {
     }
 }
 
-function CreateJsonArray(array) {
-    var output = "[";
-    for(var i = 0; i < array.length; i++) {
-        if(output != "[") {
-            output += ",";
-        }
-
-        var value = array[i];
-        output += CreateJsonElement(value);
-    }
-
-    output += "]";
-    return output;
-}
-
 function CreateJsonObject(object) {
     var output = "{";
-    for(var key in object) {
-        if(output != "{") {
-            output += ",";
-        }
-
-        var value = object[key];
-        output += "\\"" + key + "\\":" + CreateJsonElement(value);
+    for (var key in object) {
+        if (output != "{") output += ",";
+        output += '"' + key + '":' + CreateJsonElement(object[key]);
     }
-    output += "}";
-    return output;
+
+    return output + "}";
 }
 
 function WaitForITunes() {
-    var service = WScript.CreateObject("WbemScripting.SWbemLocator").ConnectServer();
-    while(true) {
+    while (true) {
         // Search for the "iTunes.exe" process
-        var items = service.ExecQuery(sQuery);
-        if(items.Count != 0) {
+        var items = service.ExecQuery("SELECT * FROM Win32_Process WHERE Name = 'iTunes.exe'");
+        if (items.Count != 0) {
             // If there is, create the object used for retrieving the tracks and return
             iTunesApp = WScript.CreateObject("iTunes.Application");
             return;
         }
+
         WScript.sleep(1000);
     }
 }
 
-function WriteInfoLine(object) {
-    var json = CreateJsonObject(object);
-    stderr.WriteLine(encodeURIComponent(json));
-}
+function ConvertITTrack(track) {
+    if (track == undefined) {
+        return null;
+    }
 
-function MainLoop() {
-    while(true) {
-        if(iTunesApp == null) {
-            LogStopped();
-            WaitForITunes();
-        } else {
-            try {
-                var currentTrack = iTunesApp.CurrentTrack;
-                var playerState = iTunesApp.PlayerState;
-                if(currentTrack == null || playerState == null) {
-                    LogStopped();
-                } else {
-                    if(playerState == 0) {
-                        state = "PAUSED";
-                    } else {
-                        state = "PLAYING";
-                    }
-                    
-                    // Create a JSON object with the track information
-                    try {
-                        WriteInfoLine({
-                            name: currentTrack.Name,
-                            artist: currentTrack.Artist,
-                            album: currentTrack.Album,
-                            state: state,
-                            position: iTunesApp.PlayerPosition,
-                            duration: currentTrack.Duration,
-                            trackNumber: currentTrack.TrackNumber,
-                            trackCount: currentTrack.TrackCount
-                        });
-                    } catch (e) {
-                        stderr.WriteLine(e.message);
-                    }
-                }
-                
-                WScript.sleep(1000);
-            } catch(err) {
-                // If iTunes stops, reset the variables and do nothing
-                iTunesApp = null;
-            }
-        }
+    return {
+        title: track.Name,
+        artist: track.Artist,
+        album: track.Album,
+        duration: track.Duration
     }
 }
 
-function LogStopped() {
-    if(state != "STOPPED") {
-        state = "STOPPED";
-        WriteInfoLine({ state: state });
-    }
+function Emit(event, data) {
+    var json = CreateJsonObject({ t: event, d: data });
+    stderr.WriteLine(json);
 }
 
 WaitForITunes();
-MainLoop();
+while(true) {
+    if (iTunesApp == null) {
+        WaitForITunes();
+        continue;
+    }
+
+    var track = iTunesApp.CurrentTrack;
+    var playerState = iTunesApp.PlayerState;
+    if (track == null || playerState == null) {
+        if (playing) {
+            playing = false;
+            Emit("stop");
+        }
+
+        continue;
+    }
+
+    playing = true;
+    
+    // Create a JSON object with the track information
+    Emit("tick", {
+        track: ConvertITTrack(track),
+        state: playerState == 0 ? "PAUSED" : "PLAYING",
+        position: iTunesApp.PlayerPosition
+    });
+    
+    WScript.sleep(1000);
+}
+
+// Reset Variables
+iTunesApp = null;
 `;
 
 export async function createScriptFile() {
     const path = join(process.cwd(), "script-file.js");
     await writeFile(
-        path, 
+        path,
         SCRIPT_CONTENT
     );
 
     return path;
+}
+
+export function startITunesReader(script: string): ReadableStream<iTunes.Event> {
+    const proc = spawn(
+        "Cscript.exe",
+        [script],
+        { stdio: "pipe", shell: false }    
+    );
+
+    return Readable
+        .toWeb(proc.stderr)
+        .pipeThrough(new TextDecoderStream())
+        .pipeThrough(new JsonParseStream<iTunes.Event>())
 }

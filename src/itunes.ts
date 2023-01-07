@@ -1,17 +1,3 @@
-import { spawn } from "node:child_process";
-import { Readable } from "node:stream";
-import { ReadableStream, TextDecoderStream } from "node:stream/web";
-
-export function startITunesReader(script: string): ReadableStream<string> {
-    const proc = spawn(
-        "Cscript.exe",
-        [script],
-        { stdio: "pipe", shell: false }
-    );
-
-    return Readable.toWeb(proc.stderr).pipeThrough(new TextDecoderStream())
-}
-
 export async function searchAlbum(
     artist: string,
     album: string
@@ -24,9 +10,9 @@ export async function searchAlbum(
     });
 
     const resp = await fetch(`https://itunes.apple.com/search?${params}`)
-        , json: iTunesSearchResponse = await resp.json();
+        , json: iTunes.SearchResponse = await resp.json();
 
-    let result: iTunesSearchResult | undefined;
+    let result: iTunes.SearchResult | undefined;
     if (json.resultCount === 1) {
         result = json.results[0];
     } else if (json.resultCount > 1) {
@@ -45,37 +31,33 @@ export interface iTunesInfos {
     url: string | null;
 }
 
-interface iTunesSearchResponse {
-    resultCount: number;
-    results: iTunesSearchResult[];
+/* cry about it */
+export namespace iTunes {
+    export interface SearchResponse {
+        resultCount: number;
+        results: SearchResult[];
+    }
+
+    export interface SearchResult {
+        artworkUrl100: string;
+        collectionViewUrl: string;
+        collectionName: string;
+    }
+
+    type createEvent<$Type, $Data> = { t: $Type, d: $Data }
+
+    export type TickEvent = { state: "PLAYING" | "PAUSED", track: TrackInfo, position: number }
+
+    export type StopEvent = { track: TrackInfo }
+
+    export type Event =
+        | createEvent<"tick", TickEvent>
+        | createEvent<"stop", StopEvent>
 }
 
-interface iTunesSearchResult {
-    artworkUrl100: string;
-    collectionViewUrl: string;
-    collectionName: string;
-}
-
-export type TrackInfo =
-    | { state: "STOPPED" }
-    | HydratedTrackInfo
-
-export interface HydratedTrackInfo {
-    state: "PLAYING" | "PAUSED";
-    name: string;
-    artist: string;
-    album: string;
-    position: number;
-    duration: number;
-    trackNumber: number;
-    trackCount: number;
-}
-
-export interface Track {
-    info: iTunesInfos;
-    name: string;
+export interface TrackInfo {
+    title: string;
     album: string;
     duration: number;
     artist: string;
-    startedAt: number;
 }

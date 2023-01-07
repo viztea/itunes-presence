@@ -1,8 +1,11 @@
 dist/
 bin/
 
+.dev/
 .yarn/cache
 .yarn/install-state.gz
+
+script-file.js
 
 node_modules
 *.tsbuildinfo
