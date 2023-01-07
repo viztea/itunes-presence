@@ -23,8 +23,8 @@ export class Player {
     }
     
     async start(script: string) {
+        await this.rpc.endlessLogin({ clientId: "1054013362230530170" });
         while (true) {
-            await this.rpc.endlessLogin({ clientId: "1054013362230530170" });
             for await (const event of startITunesReader(script)) {
                 console.log("<<<", JSON.stringify(event));
                 switch (event.t) {

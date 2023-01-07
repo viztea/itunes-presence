@@ -1,5 +1,5 @@
 import { rm } from "fs/promises";
-import { Player } from "./playback";
+import { Player } from "./player";
 import { createScriptFile } from "./script";
 import onExit from "signal-exit";
 

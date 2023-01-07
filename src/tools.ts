@@ -1,6 +1,6 @@
 import type { Presence } from "discord-auto-rpc";
 import { iTunes, searchAlbum, TrackInfo } from "./itunes";
-import type { PlayerTrack } from "./playback";
+import type { PlayerTrack } from "./player";
 import createHash from "object-hash";
 import { TransformStream } from "node:stream/web";
 
