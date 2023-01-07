@@ -1,4 +1,4 @@
-# iTunes-Presence
+# iTunes Companion
 
 Discord Rich Presence for iTunes on Windows.
 
