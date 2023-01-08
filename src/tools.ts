@@ -25,9 +25,12 @@ export async function createPresence(track: PlayerTrack): Promise<Presence> {
     const presence: Presence = {
         details: formatStr(track.info.title),
         endTimestamp: track.end,
-        largeImageKey: "ico",
-        largeImageText: track.info.album,
+        largeImageKey: "ico"
     };
+
+    if (track.info.album.length >= 2) {
+        presence.largeImageText = track.info.album;
+    }
 
     if (track.info.artist.length > 0) {
         presence.state = formatStr(`by ${track.info.artist}`);

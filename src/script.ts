@@ -64,8 +64,12 @@ function ConvertITTrack(track) {
 }
 
 function Emit(event, data) {
-    var json = CreateJsonObject({ t: event, d: data });
-    stderr.WriteLine(json);
+    var obj = { t: event };
+    if (data != undefined) {
+        obj.d = data;
+    };
+
+    stderr.WriteLine(CreateJsonObject(obj));
 }
 
 WaitForITunes();
