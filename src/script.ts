@@ -1,10 +1,5 @@
-import { spawn } from "node:child_process";
-import { Readable } from "node:stream";
-import { ReadableStream, TextDecoderStream } from "node:stream/web";
-import { writeFile } from "node:fs/promises";
-import { join } from "node:path";
-import { JsonParseStream } from "./tools";
-import type { iTunes } from "./itunes";
+import { join, JsonParseStream } from "../deps.ts";
+import { iTunesEvent } from "./types.ts";
 
 const SCRIPT_CONTENT = /* js */`
 var stderr = WScript
@@ -102,25 +97,27 @@ while(true) {
 iTunesApp = null;
 `;
 
-export async function createScriptFile() {
-    const path = join(process.cwd(), "script-file.js");
-    await writeFile(
-        path,
-        SCRIPT_CONTENT
+export async function create(): Promise<string> {
+    const path = join(Deno.cwd(), "script.js");
+    await Deno.writeFile(
+        path, 
+        new TextEncoder().encode(SCRIPT_CONTENT)
     );
 
     return path;
 }
 
-export function startITunesReader(script: string): ReadableStream<iTunes.Event> {
-    const proc = spawn(
-        "Cscript.exe",
-        [script],
-        { stdio: "pipe", shell: false }    
-    );
+export function execute(file: string): ReadableStream<iTunesEvent> {
+    const p = Deno.run({
+        cmd: ["cscript", file],
+        stderr: "piped"
+    });
 
-    return Readable
-        .toWeb(proc.stderr)
+    // our script is writing to stderr, so we need to read from that
+    const readStream = p.stderr.readable
         .pipeThrough(new TextDecoderStream())
-        .pipeThrough(new JsonParseStream<iTunes.Event>())
+        .pipeThrough(new JsonParseStream());
+
+    /* if the parsed chunks do not conform to `iTunesEvent` then it should just be a panic lol. */
+    return readStream as unknown as ReadableStream<iTunesEvent>;
 }

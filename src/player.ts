@@ -1,7 +1,7 @@
-import type { iTunes, TrackInfo } from "./itunes";
-import { AutoClient, type Presence } from "discord-auto-rpc";
-import { startITunesReader } from "./script";
-import { createPresence, createTrack } from "./tools";
+import { Activity, delay, getLogger, RPC } from "../deps.ts";
+import * as wsh from "./script.ts"
+import { createActivity, createTrack } from "./tools.ts";
+import { iTunesTickEvent, TrackInfo } from "./types.ts";
 
 export interface PlayerTrack {
     hash: string;
@@ -10,63 +10,73 @@ export interface PlayerTrack {
 }
 
 export class Player {
-    readonly rpc: AutoClient;
-    
-    track: PlayerTrack | null = null;
-    
-    paused = false;
+    static readonly LOGGER = getLogger("player")
 
-    presenceCache: Presence | null = null;
+    #activity: Activity | null = null;
+    #rpc: RPC = new RPC({ id: "1054013362230530170" });
+    #signal = new AbortController();
+    #paused = false;
+    #track: PlayerTrack | null = null;
 
-    constructor() {
-        this.rpc = new AutoClient({ transport: "ipc" });
-    }
-    
-    async start(script: string) {
-        await this.rpc.endlessLogin({ clientId: "1054013362230530170" });
-        while (true) {
-            for await (const event of startITunesReader(script)) {
-                console.log("<<<", JSON.stringify(event));
-                switch (event.t) {
-                    case "stop":
-                        await this.stop();
-                        break;
-                    case "tick":
-                        await this.tick(event.d);
-                        break;
-                }
-            };
+    async start() {
+        // create the script.
+        const scriptPath = await wsh.create();
 
-            console.log("Exited iTunes read loop");
-            await new Promise(resolve => setTimeout(resolve, 5_000));
-        }
+        // connect rpc
+        await this.#rpc.connect();
+
+        // race the abort signal and the read loop.
+        await Promise.race([
+            this.#execute(scriptPath),
+            new Promise(resolve => this.#signal.signal.addEventListener("abort", resolve))
+        ]);
+
+        // cleanup.
+        await this.#rpc.clearActivity();
+        this.#rpc.close();
+
+        await Deno.remove(scriptPath);
     }
 
-    async pause() {
-        this.paused = true;
-
-        await this.rpc.clearActivity();
+    destroy() {
+        this.#signal.abort();
     }
 
-    async stop() {
-        await this.rpc.clearActivity();
-    }
-
-    async tick(event: iTunes.TickEvent) {
+    async #tick(event: iTunesTickEvent) {
         if (event.state === "PAUSED") {
-            if (!this.paused) await this.pause();
+            if (!this.#paused) {
+                this.#paused = true;
+                await this.#rpc.clearActivity();
+            }
+
             return;
         }
 
-        const track = createTrack(event);
-        if (this.paused || this.track?.hash !== track.hash) {
-            this.paused = false;
-            this.track = track;
-            this.presenceCache = await createPresence(this.track);
+        const track = await createTrack(event);
+        if (this.#paused || this.#track?.hash !== track.hash) {
+            this.#paused = false;
+            this.#track = track;
+            this.#activity = await createActivity(this.#track);
         }
 
-        if (this.presenceCache) {
-            await this.rpc.setActivity(this.presenceCache);
+        if (this.#activity) {
+            await this.#rpc.setActivity(this.#activity);
+        }
+    } 
+
+    async #execute(scriptPath: string): Promise<void> {
+        while (true) {
+            for await (const event of wsh.execute(scriptPath)) {
+                Player.LOGGER.debug(() => `Received event: ${JSON.stringify(event)}`);
+
+                if (event.t === "stop") {
+                    await this.#rpc.clearActivity();
+                } else if (event.t === "tick") {
+                    await this.#tick(event.d);
+                }
+            }
+
+            await delay(5_000);
         }
     }
 }

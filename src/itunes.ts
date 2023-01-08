@@ -10,9 +10,9 @@ export async function searchAlbum(
     });
 
     const resp = await fetch(`https://itunes.apple.com/search?${params}`)
-        , json: iTunes.SearchResponse = await resp.json();
+        , json: SearchResponse = await resp.json();
 
-    let result: iTunes.SearchResult | undefined;
+    let result: SearchResult | undefined;
     if (json.resultCount === 1) {
         result = json.results[0];
     } else if (json.resultCount > 1) {
@@ -31,33 +31,13 @@ export interface iTunesInfos {
     url: string | null;
 }
 
-/* cry about it */
-export namespace iTunes {
-    export interface SearchResponse {
-        resultCount: number;
-        results: SearchResult[];
-    }
-
-    export interface SearchResult {
-        artworkUrl100: string;
-        collectionViewUrl: string;
-        collectionName: string;
-    }
-
-    type createEvent<$Type, $Data> = { t: $Type, d: $Data }
-
-    export type TickEvent = { state: "PLAYING" | "PAUSED", track: TrackInfo, position: number }
-
-    export type StopEvent = { track: TrackInfo }
-
-    export type Event =
-        | createEvent<"tick", TickEvent>
-        | createEvent<"stop", StopEvent>
+interface SearchResponse {
+    resultCount: number;
+    results: SearchResult[];
 }
 
-export interface TrackInfo {
-    title: string;
-    album: string;
-    duration: number;
-    artist: string;
+interface SearchResult {
+    artworkUrl100: string;
+    collectionViewUrl: string;
+    collectionName: string;
 }

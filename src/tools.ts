@@ -1,8 +1,7 @@
-import type { Presence } from "discord-auto-rpc";
-import { iTunes, searchAlbum, TrackInfo } from "./itunes";
-import type { PlayerTrack } from "./player";
-import createHash from "object-hash";
-import { TransformStream } from "node:stream/web";
+import { Activity, hex } from "../deps.ts";
+import { searchAlbum } from "./itunes.ts";
+import type { PlayerTrack } from "./player.ts";
+import type { iTunesTickEvent, TrackInfo } from "./types.ts";
 
 export function formatStr(s: string, minLength = 2, maxLength = 128) {
     return s.length <= maxLength
@@ -21,12 +20,9 @@ export function getEndTimestamp(track: TrackInfo, position: number) {
     return end;
 }
 
-export async function createPresence(track: PlayerTrack): Promise<Presence> {
-    const presence: Presence = {
+export async function createActivity(track: PlayerTrack): Promise<Activity> {
+    const presence: Activity = {
         details: formatStr(track.info.title),
-        endTimestamp: track.end,
-        largeImageKey: "ico",
-        largeImageText: track.info.album,
     };
 
     if (track.info.artist.length > 0) {
@@ -39,37 +35,29 @@ export async function createPresence(track: PlayerTrack): Promise<Presence> {
         presence.buttons = [{ label: "Listen on Apple Music", url: meta.url }]
     }
 
-    if (meta.artwork) {
-        presence.largeImageKey = meta.artwork;
-    }
+    const largeImage = meta.artwork ?? "ico";
 
     /* return created presence. */
-    return presence;
+    return {
+        assets: { large_image: largeImage, large_text: track.info.album },
+        timestamps: { end: track.end },
+
+        ...presence,
+    };
 }
 
-export function createTrack(event: iTunes.TickEvent): PlayerTrack {
+const dec = new TextDecoder(), enc = new TextEncoder();
+
+export async function createTrack(event: iTunesTickEvent): Promise<PlayerTrack> {
+    const hash = await crypto.subtle.digest(
+        "SHA-256", 
+        enc.encode(JSON.stringify(event.track))
+    );
     return {
         info: event.track,
-        hash: createHash(event.track),
+        hash: dec.decode(
+            hex.encode(new Uint8Array(hash))
+        ), // replace with a better hash method.
         end: getEndTimestamp(event.track, event.position)
-    }
-}
-
-/* https://deno.land/std@0.171.0/encoding/json/_parse.ts?source#L68 */
-export class JsonParseStream<T = unknown> extends TransformStream<string, T> {
-    static readonly BRANKS = /^[ \t\r\n]*$/;
-
-    static isBrankString(str: string) {
-        return JsonParseStream.BRANKS.test(str);
-    }
-    
-    constructor() {
-        super(
-            {
-                transform(chunk, controller) {
-                    if (!JsonParseStream.isBrankString(chunk)) controller.enqueue(JSON.parse(chunk));
-                },
-            },
-        );
     }
 }
