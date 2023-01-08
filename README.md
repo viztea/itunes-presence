@@ -13,7 +13,7 @@ Discord Rich Presence for iTunes on Windows (possibly Mac soon?)
 
 ## Usage
 
-1. Go to the releases tab [here](/releases)
+1. Go to the releases tab [here](https://github.com/melike2d/itunes-presence/releases)
 2. Download the `.exe` file
 3. Double-click it in your file manager.
 4. Profit!
@@ -22,6 +22,13 @@ Discord Rich Presence for iTunes on Windows (possibly Mac soon?)
 
 ![Status](https://img.2d.gay/1de27b4d.png)  
 ![Activity](https://img.2d.gay/0d1a0745.png)  
+
+## TODO
+
+- [ ] Customization
+- [ ] Minimize to System Tray Icon
+- [ ] Add GUI
+- [ ] MacOS Support?
 
 ## Acknowledgements
 
