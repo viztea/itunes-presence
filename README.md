@@ -5,7 +5,7 @@ Discord Rich Presence for iTunes on Windows (possibly Mac soon?)
 > **Note:**  
 > This was primarily built w/ Apple Music in mind.
 
-- [**Discord Server**](https://2d.gay/discord)
+- [**Discord Server**](https://discord.gg/8R4d8RydT4)
 
 ## Features
 
