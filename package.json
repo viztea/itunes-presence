@@ -6,7 +6,8 @@
     "scripts": {
         "build:bundle": "esbuild src/index.ts --bundle --minify --target=node18 --sourcemap=inline --platform=node --outfile=dist/index.js",
         "build:binary": "pkg .",
-        "start": "node --enable-source-maps ."
+        "start": "node --enable-source-maps .",
+        "start:dev": "yarn run build:bundle && yarn start"
     },
     "devDependencies": {
         "@types/discord-rpc": "^4.0.3",

@@ -3,7 +3,7 @@ import { Readable } from "node:stream";
 import { ReadableStream, TextDecoderStream } from "node:stream/web";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { JsonParseStream } from "./tools";
+import { URIDecoderStream, JsonParseStream } from "./tools";
 import type { iTunes } from "./itunes";
 
 const SCRIPT_CONTENT = /* js */`
@@ -69,7 +69,7 @@ function Emit(event, data) {
         obj.d = data;
     };
 
-    stderr.WriteLine(CreateJsonObject(obj));
+    stderr.WriteLine(encodeURIComponent(CreateJsonObject(obj)));
 }
 
 WaitForITunes();
@@ -126,5 +126,6 @@ export function startITunesReader(script: string): ReadableStream<iTunes.Event> 
     return Readable
         .toWeb(proc.stderr)
         .pipeThrough(new TextDecoderStream())
+        .pipeThrough(new URIDecoderStream())
         .pipeThrough(new JsonParseStream<iTunes.Event>())
 }

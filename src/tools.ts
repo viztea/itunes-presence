@@ -58,6 +58,16 @@ export function createTrack(event: iTunes.TickEvent): PlayerTrack {
     }
 }
 
+export class URIDecoderStream extends TransformStream<string, string> {
+    constructor() {
+        super({
+            transform(chunk, controller) {
+                controller.enqueue(decodeURIComponent(chunk));
+            }
+        });
+    }
+}
+
 /* https://deno.land/std@0.171.0/encoding/json/_parse.ts?source#L68 */
 export class JsonParseStream<T = unknown> extends TransformStream<string, T> {
     static readonly BRANKS = /^[ \t\r\n]*$/;
