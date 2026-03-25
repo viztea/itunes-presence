@@ -1,5 +1,7 @@
 # iTunes Companion
 
+[![Hypercommit](https://img.shields.io/badge/Hypercommit-DB2475)](https://hypercommit.com/itunes-presence)
+
 Discord Rich Presence for iTunes on Windows (possibly Mac soon?)
 
 > **Note:**  
